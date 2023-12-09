@@ -1,8 +1,9 @@
 import os
 import tkinter as tk
+import threading
 from tkinter import filedialog, Menu, ttk
 from PIL import Image, ImageTk
-import threading
+
 
 class SpriteStacker(tk.Tk):
 
@@ -76,7 +77,7 @@ class SpriteStacker(tk.Tk):
 
     def process_and_display_images(self):
         preview_max_width = self.preview_frame.winfo_width()
-        preview_max_height = self.preview_frame.winfo_height()  
+        preview_max_height = self.preview_frame.winfo_height()
 
         if not self.image_paths:
             placeholder_image = Image.new('RGBA', (preview_max_width, preview_max_height), (255, 255, 255, 0))
@@ -131,12 +132,12 @@ class SpriteStacker(tk.Tk):
         item = self.tree_view.identify_row(event.y)
         if item:
             self.dragged_item = item
-    
+
     def on_drag_motion(self, event):
         item = self.tree_view.identify_row(event.y)
         if item and item != self.dragged_item:
             self.tree_view.move(self.dragged_item, self.tree_view.parent(item), self.tree_view.index(item))
-    
+
     def on_drag_release(self, event):
         if self.dragged_item:
             self.update_image_order()
@@ -155,7 +156,7 @@ class SpriteStacker(tk.Tk):
 
     def on_del_key(self, event):
         self.remove_selected_item()
-        
+
     def remove_selected_item(self):
         selected_item = self.tree_view.selection()
         if selected_item:
@@ -174,6 +175,7 @@ class SpriteStacker(tk.Tk):
                 self.image_paths.remove(path_to_remove)
 
             self.load_and_display_images()
+
 
 if __name__ == "__main__":
     app = SpriteStacker()
