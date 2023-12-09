@@ -1,8 +1,8 @@
 import os
 import tkinter as tk
-import threading
 from tkinter import filedialog, Menu, ttk
 from PIL import Image, ImageTk
+import windnd
 
 
 class SpriteStacker(tk.Tk):
@@ -10,7 +10,7 @@ class SpriteStacker(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Sprite Stacker")
-        self.geometry("800x600")
+        self.geometry("900x700")
 
         self.image_paths = []
         self.image_cache = {}
@@ -23,10 +23,13 @@ class SpriteStacker(tk.Tk):
         self.create_ui_components()
         self.bind_events()
 
+        windnd.hook_dropfiles(self, func=self.on_drop)
+
     def create_menu(self):
         self.menu_bar = Menu(self)
         self.file_menu = Menu(self.menu_bar, tearoff=0)
-        self.file_menu.add_command(label="Open images", command=self.open_images)
+        self.file_menu.add_command(label="Add images", command=self.open_images)
+        self.file_menu.add_command(label="Save", command=self.save_image)
         self.menu_bar.add_cascade(label="File", menu=self.file_menu)
         self.config(menu=self.menu_bar)
 
@@ -57,8 +60,16 @@ class SpriteStacker(tk.Tk):
         self.create_context_menu()
 
     def create_context_menu(self):
-        self.treeview_menu = tk.Menu(self, tearoff=0)
-        self.treeview_menu.add_command(label="Remove", command=self.remove_selected_item)
+        self.tree_view_menu = tk.Menu(self, tearoff=0)
+        self.tree_view_menu.add_command(label="Remove", command=self.remove_selected_item)
+
+    def on_drop(self, filenames):
+        for file in filenames:
+            file = file.decode('utf-8')
+            if os.path.isfile(file) and file.lower().endswith(('.png', '.jpg')):
+                self.image_paths.append(file)
+                self.tree_view.insert('', 'end', text=os.path.basename(file))
+        self.load_and_display_images()
 
     def open_images(self):
         file_types = [("Images", ".png;*.jpg")]
@@ -68,12 +79,27 @@ class SpriteStacker(tk.Tk):
             self.tree_view.insert('', 'end', text=os.path.basename(file))
         self.load_and_display_images()
 
+    def save_image(self):
+        if not hasattr(self, 'current_image') or self.current_image is None:
+            print("No combined image to save.")
+            return
+
+        file_types = [("PNG files", "*.png")]
+        file_path = filedialog.asksaveasfilename(title="Save image as", filetypes=file_types, defaultextension=".png")
+
+        if file_path:
+            try:
+                self.current_image.save(file_path, format='PNG')
+                print(f"Image successfully saved to {file_path}")
+            except Exception as e:
+                print(f"Error saving image: {e}")
+
     def on_resize(self, event):
         if hasattr(self, 'image') and self.image:
             self.load_and_display_images()
 
     def load_and_display_images(self):
-        threading.Thread(target=self.process_and_display_images, daemon=True).start()
+        self.process_and_display_images()
 
     def process_and_display_images(self):
         preview_max_width = self.preview_frame.winfo_width()
@@ -87,7 +113,7 @@ class SpriteStacker(tk.Tk):
             max_height = 0
             images = []
 
-            for image_path in self.image_paths:
+            for image_path in reversed(self.image_paths):
                 if image_path in self.image_cache:
                     img = self.image_cache[image_path]
                 else:
@@ -99,17 +125,20 @@ class SpriteStacker(tk.Tk):
                 max_width = max(max_width, img.width)
                 max_height = max(max_height, img.height)
 
-            combined_image = Image.new('RGBA', (max_width, max_height))
+            combined_image = Image.new('RGBA', (max_width, max_height), (0, 0, 0, 0))  # Background is transparent
 
-            for img in reversed(images):
+            for img in images:
                 x_offset = (max_width - img.width) // 2
                 y_offset = (max_height - img.height) // 2
-                combined_image.paste(img, (x_offset, y_offset), img if img.mode == 'RGBA' else None)
+                temp_image = Image.new('RGBA', (max_width, max_height), (0, 0, 0, 0))
+                temp_image.paste(img, (x_offset, y_offset), img if img.mode == 'RGBA' else None)
+                combined_image.alpha_composite(temp_image)
 
             if max_width > preview_max_width or max_height > preview_max_height:
                 combined_image.thumbnail((preview_max_width, preview_max_height), Image.LANCZOS)
 
             self.update_image_display(combined_image)
+            self.current_image = combined_image
 
     def update_image_display(self, image):
         self.image = ImageTk.PhotoImage(image)
@@ -123,8 +152,9 @@ class SpriteStacker(tk.Tk):
         try:
             item = self.tree_view.identify_row(event.y)
             if item:
-                self.tree_view.selection_set(item)
-                self.treeview_menu.post(event.x_root, event.y_root)
+                if len(self.tree_view.selection()) <= 1:
+                    self.tree_view.selection_set(item)
+                self.tree_view_menu.post(event.x_root, event.y_root)
         except Exception as e:
             print("Error showing context menu:", e)
 
@@ -136,7 +166,9 @@ class SpriteStacker(tk.Tk):
     def on_drag_motion(self, event):
         item = self.tree_view.identify_row(event.y)
         if item and item != self.dragged_item:
-            self.tree_view.move(self.dragged_item, self.tree_view.parent(item), self.tree_view.index(item))
+            parent = self.tree_view.parent(item)
+            index = self.tree_view.index(item)
+            self.tree_view.move(self.dragged_item, parent, index)
 
     def on_drag_release(self, event):
         if self.dragged_item:
@@ -158,21 +190,20 @@ class SpriteStacker(tk.Tk):
         self.remove_selected_item()
 
     def remove_selected_item(self):
-        selected_item = self.tree_view.selection()
-        if selected_item:
-            selected_item = selected_item[0]
-            filename = self.tree_view.item(selected_item, 'text')
+        selected_items = self.tree_view.selection()
+        if selected_items:
+            paths_to_remove = []
 
-            self.tree_view.delete(selected_item)
+            for selected_item in selected_items:
+                filename = self.tree_view.item(selected_item, 'text')
+                self.tree_view.delete(selected_item)
 
-            path_to_remove = None
-            for path in self.image_paths:
-                if os.path.basename(path) == filename:
-                    path_to_remove = path
-                    break
+                for path in self.image_paths:
+                    if os.path.basename(path) == filename:
+                        paths_to_remove.append(path)
 
-            if path_to_remove:
-                self.image_paths.remove(path_to_remove)
+            for path in paths_to_remove:
+                self.image_paths.remove(path)
 
             self.load_and_display_images()
 
