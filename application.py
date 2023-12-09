@@ -14,6 +14,7 @@ class SpriteStacker(tk.Tk):
 
         self.image_paths = []
         self.image_cache = {}
+        self.image_enabled = {}
         self.dragged_item = None
 
         self.setup_ui()
@@ -44,6 +45,7 @@ class SpriteStacker(tk.Tk):
 
     def create_tree_view(self):
         self.tree_view = ttk.Treeview(self.split_container, show='tree')
+        self.tree_view.tag_configure("disabled", foreground="gray")
         self.split_container.add(self.tree_view)
 
     def create_preview_frame(self):
@@ -56,6 +58,7 @@ class SpriteStacker(tk.Tk):
         self.tree_view.bind('<ButtonRelease-1>', self.on_drag_release)
         self.tree_view.bind("<Delete>", self.on_del_key)
         self.tree_view.bind("<Button-3>", self.show_context_menu)
+        self.tree_view.bind("<Double-1>", self.toggle_image_state)
         self.bind('<Configure>', self.on_resize)
         self.create_context_menu()
 
@@ -68,7 +71,9 @@ class SpriteStacker(tk.Tk):
             file = file.decode('utf-8')
             if os.path.isfile(file) and file.lower().endswith(('.png', '.jpg')):
                 self.image_paths.append(file)
-                self.tree_view.insert('', 'end', text=os.path.basename(file))
+                filename = os.path.basename(file)
+                self.image_enabled[filename] = True
+                self.tree_view.insert('', 'end', text=filename)
         self.load_and_display_images()
 
     def open_images(self):
@@ -76,8 +81,24 @@ class SpriteStacker(tk.Tk):
         selected_files = filedialog.askopenfilenames(title="Select images", filetypes=file_types)
         self.image_paths.extend(selected_files)
         for file in selected_files:
-            self.tree_view.insert('', 'end', text=os.path.basename(file))
+            filename = os.path.basename(file)
+            self.image_enabled[filename] = True
+            self.tree_view.insert('', 'end', text=filename)
         self.load_and_display_images()
+
+    def toggle_image_state(self, event):
+        item = self.tree_view.identify_row(event.y)
+        if item:
+            filename = self.tree_view.item(item, 'text')
+            is_enabled = self.image_enabled.get(filename, True)
+            self.image_enabled[filename] = not is_enabled
+
+            if is_enabled:
+                self.tree_view.item(item, tags=("disabled",))
+            else:
+                self.tree_view.item(item, tags=())
+
+            self.load_and_display_images()
 
     def save_image(self):
         if not hasattr(self, 'current_image') or self.current_image is None:
@@ -114,6 +135,10 @@ class SpriteStacker(tk.Tk):
             images = []
 
             for image_path in reversed(self.image_paths):
+                filename = os.path.basename(image_path)
+                if not self.image_enabled.get(filename, True):
+                    continue
+
                 if image_path in self.image_cache:
                     img = self.image_cache[image_path]
                 else:
