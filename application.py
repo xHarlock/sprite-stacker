@@ -15,7 +15,9 @@ class SpriteStacker(tk.Tk):
         self.image_paths = []
         self.image_cache = {}
         self.image_enabled = {}
+
         self.dragged_item = None
+        self.double_clicked = False
 
         self.setup_ui()
 
@@ -23,7 +25,6 @@ class SpriteStacker(tk.Tk):
         self.create_menu()
         self.create_ui_components()
         self.bind_events()
-
         windnd.hook_dropfiles(self, func=self.on_drop)
 
     def create_menu(self):
@@ -64,27 +65,35 @@ class SpriteStacker(tk.Tk):
 
     def create_context_menu(self):
         self.tree_view_menu = tk.Menu(self, tearoff=0)
-        self.tree_view_menu.add_command(label="Remove", command=self.remove_selected_item)
+        self.tree_view_menu.add_command(label="Remove", command=self.remove_selected_items)
 
     def on_drop(self, filenames):
         for file in filenames:
             file = file.decode('utf-8')
             if os.path.isfile(file) and file.lower().endswith(('.png', '.jpg')):
-                self.image_paths.append(file)
-                filename = os.path.basename(file)
-                self.image_enabled[filename] = True
-                self.tree_view.insert('', 'end', text=filename)
+                self.insert_image(file)
         self.load_and_display_images()
 
     def open_images(self):
         file_types = [("Images", ".png;*.jpg")]
         selected_files = filedialog.askopenfilenames(title="Select images", filetypes=file_types)
-        self.image_paths.extend(selected_files)
-        for file in selected_files:
-            filename = os.path.basename(file)
-            self.image_enabled[filename] = True
-            self.tree_view.insert('', 'end', text=filename)
+        for file in reversed(selected_files):
+            self.insert_image(file)
         self.load_and_display_images()
+
+    def insert_image(self, image):
+        self.image_paths.insert(0, image)
+        filename = os.path.basename(image)
+        self.image_enabled[filename] = True
+        self.tree_view.insert('', 0, text=filename)
+
+    def on_double_click(self, event):
+        self.double_clicked = True
+        self.after(300, self.reset_double_click)
+        self.toggle_image_state(event)
+
+    def reset_double_click(self):
+        self.double_clicked = False
 
     def toggle_image_state(self, event):
         item = self.tree_view.identify_row(event.y)
@@ -120,9 +129,6 @@ class SpriteStacker(tk.Tk):
             self.load_and_display_images()
 
     def load_and_display_images(self):
-        self.process_and_display_images()
-
-    def process_and_display_images(self):
         preview_max_width = self.preview_frame.winfo_width()
         preview_max_height = self.preview_frame.winfo_height()
 
@@ -184,22 +190,31 @@ class SpriteStacker(tk.Tk):
             print("Error showing context menu:", e)
 
     def on_drag_start(self, event):
+        if self.double_clicked:
+            return
+
         item = self.tree_view.identify_row(event.y)
         if item:
             self.dragged_item = item
 
     def on_drag_motion(self, event):
-        item = self.tree_view.identify_row(event.y)
-        if item and item != self.dragged_item:
-            parent = self.tree_view.parent(item)
-            index = self.tree_view.index(item)
-            self.tree_view.move(self.dragged_item, parent, index)
+        if not self.double_clicked:
+            target_item = self.tree_view.identify_row(event.y)
+            if target_item and target_item != self.dragged_item:
+                target_index = self.tree_view.index(target_item)
+                dragged_index = self.tree_view.index(self.dragged_item)
+
+                new_index = target_index if dragged_index > target_index else target_index + 1
+
+                self.tree_view.move(self.dragged_item, '', new_index)
 
     def on_drag_release(self, event):
-        if self.dragged_item:
-            self.update_image_order()
-            self.load_and_display_images()
-        self.dragged_item = None
+        if not self.double_clicked:
+            if self.dragged_item:
+                self.update_image_order()
+                self.load_and_display_images()
+            self.dragged_item = None
+        self.double_clicked = False
 
     def update_image_order(self):
         new_image_paths = []
@@ -212,25 +227,31 @@ class SpriteStacker(tk.Tk):
         self.image_paths = new_image_paths
 
     def on_del_key(self, event):
-        self.remove_selected_item()
+        self.remove_selected_items()
 
-    def remove_selected_item(self):
+    def remove_selected_items(self):
         selected_items = self.tree_view.selection()
-        if selected_items:
-            paths_to_remove = []
+        if not selected_items:
+            return
 
-            for selected_item in selected_items:
-                filename = self.tree_view.item(selected_item, 'text')
-                self.tree_view.delete(selected_item)
+        for selected_item in selected_items:
+            filename = self.tree_view.item(selected_item, 'text')
+            self.tree_view.delete(selected_item)
+            self.update_image_lists_and_states(filename)
 
-                for path in self.image_paths:
-                    if os.path.basename(path) == filename:
-                        paths_to_remove.append(path)
+        self.load_and_display_images()
 
-            for path in paths_to_remove:
-                self.image_paths.remove(path)
+    def update_image_lists_and_states(self, filename):
+        path_to_remove = None
+        for path in self.image_paths:
+            if os.path.basename(path) == filename:
+                path_to_remove = path
+                break
 
-            self.load_and_display_images()
+        if path_to_remove:
+            self.image_paths.remove(path_to_remove)
+            self.image_cache.pop(path_to_remove, None)
+            self.image_enabled.pop(filename, None)
 
 
 if __name__ == "__main__":
