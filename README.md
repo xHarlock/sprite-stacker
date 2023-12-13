@@ -11,16 +11,24 @@ A simple tool to stack transparent sprite parts on top of each other to get the 
 
 ![showcase](resources/showcase.png)
 
-## Prerequisites
+## Installation
+
+### Method 1: Executable file
+
+1. Navigate to the [Releases](https://github.com/xHarlock/sprite-stacker/releases) tab of this repository.
+2. Go to the latest release and download the `.exe` file.
+3. Running the `.exe` file makes the window of the tool pop up.
+
+### Method 2: Terminal
 
 Before you begin, ensure you have met the following requirements:
 
 * Python 3.10 or higher installed.
 * Access to terminal or command prompt.
 
-## Installation
+Once you fulfill all of them, you can start with the installation.
 
-1. Clone the repository
+1. Clone the repository:
 
 ```bash
 git clone https://github.com/xHarlock/sprite-stacker.git
@@ -33,15 +41,13 @@ cd sprite-stacker
 pip install requirements.txt
 ```
 
-## Usage
-
-After the installation has finished, you can run the application using the following command:
+3. After the installation has finished, you can run the application using the following command:
 
 ```bash
 python src/main.py
 ```
 
-### How to Use
+### Usage
 
 1. **Import images:** Drag and drop your sprite images into the application window or use the 'Add images' option in the 'File' menu.
 2. **Arrange Sprites:** Click and drag to rearrange the sprites in the desired order. Note that the top most sprite will be shown on top of all the other sprites in the final image.
