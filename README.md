@@ -3,4 +3,4 @@ A tool to stack transparent sprite parts on top of each other to get the full sp
 
 ## Features
 
-![showcase](showcase.png)
+![showcase](resources/showcase.png)
