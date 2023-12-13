@@ -17,7 +17,6 @@ class SpriteStacker(tk.Tk):
         self.image_enabled = {}
 
         self.dragged_item = None
-        self.double_clicked = False
 
         self.setup_ui()
 
@@ -54,13 +53,17 @@ class SpriteStacker(tk.Tk):
         self.split_container.add(self.preview_frame)
 
     def bind_events(self):
-        self.tree_view.bind('<ButtonPress-1>', self.on_drag_start)
+        self.tree_view.bind('<Button-1>', self.on_drag_start)
         self.tree_view.bind('<B1-Motion>', self.on_drag_motion)
         self.tree_view.bind('<ButtonRelease-1>', self.on_drag_release)
+
         self.tree_view.bind("<Delete>", self.on_del_key)
-        self.tree_view.bind("<Button-3>", self.show_context_menu)
-        self.tree_view.bind("<Double-1>", self.toggle_image_state)
+
+        self.tree_view.bind("<Double-1>", self.on_double_click)
+
         self.bind('<Configure>', self.on_resize)
+
+        self.tree_view.bind("<Button-3>", self.show_context_menu)
         self.create_context_menu()
 
     def create_context_menu(self):
@@ -88,14 +91,6 @@ class SpriteStacker(tk.Tk):
         self.tree_view.insert('', 0, text=filename)
 
     def on_double_click(self, event):
-        self.double_clicked = True
-        self.after(300, self.reset_double_click)
-        self.toggle_image_state(event)
-
-    def reset_double_click(self):
-        self.double_clicked = False
-
-    def toggle_image_state(self, event):
         item = self.tree_view.identify_row(event.y)
         if item:
             filename = self.tree_view.item(item, 'text')
@@ -190,31 +185,20 @@ class SpriteStacker(tk.Tk):
             print("Error showing context menu:", e)
 
     def on_drag_start(self, event):
-        if self.double_clicked:
+        self.dragged_item = self.tree_view.identify_row(event.y)
+
+    def on_drag_motion(self, event):
+        if not self.dragged_item:
             return
 
         item = self.tree_view.identify_row(event.y)
-        if item:
-            self.dragged_item = item
-
-    def on_drag_motion(self, event):
-        if not self.double_clicked:
-            target_item = self.tree_view.identify_row(event.y)
-            if target_item and target_item != self.dragged_item:
-                target_index = self.tree_view.index(target_item)
-                dragged_index = self.tree_view.index(self.dragged_item)
-
-                new_index = target_index if dragged_index > target_index else target_index + 1
-
-                self.tree_view.move(self.dragged_item, '', new_index)
+        if item and item != self.dragged_item:
+            self.tree_view.move(self.dragged_item, self.tree_view.parent(item), self.tree_view.index(item))
 
     def on_drag_release(self, event):
-        if not self.double_clicked:
-            if self.dragged_item:
-                self.update_image_order()
-                self.load_and_display_images()
-            self.dragged_item = None
-        self.double_clicked = False
+        self.dragged_item = None
+        self.update_image_order()
+        self.load_and_display_images()
 
     def update_image_order(self):
         new_image_paths = []
