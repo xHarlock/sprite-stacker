@@ -50,9 +50,10 @@ python src/main.py
 ### Usage
 
 1. **Import images:** Drag and drop your sprite images into the application window or use the 'Add images' option in the 'File' menu.
-2. **Arrange Sprites:** Click and drag to rearrange the sprites in the desired order. Note that the top most sprite will be shown on top of all the other sprites in the final image.
-3. **Preview Stacked Sprites:** The right area shows a live preview of the stacked sprites.
-4. **Export Image:** Use the 'Save' option in the 'File' menu to export the combined sprite image.
+2. **Arrange sprites:** Click and drag to rearrange the sprites in the desired order. Note that the top most sprite will be shown on top of all the other sprites in the final image.
+3. **Disable layers:** By double-clicking on individual layers, they can be disabled and thus be hidden from the preview and the final image.
+4. **Preview stacked sprites:** The right area shows a live preview of the stacked sprites.
+5. **Export image:** Use the 'Save' option in the 'File' menu to export the combined sprite image.
 
 ## Contributing
 

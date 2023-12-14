@@ -12,55 +12,52 @@ jobs:
       contents: write
 
     steps:
-    - uses: actions/checkout@v2
-    
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.10'
+      - uses: actions/checkout@v2
 
-    - name: Install Dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
 
-    - name: Build Executable
-      run: pyinstaller --onefile --name sprite-stacker src/main.py
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v2
-      with:
-        name: sprite-stacker.exe
-        path: dist/sprite-stacker.exe
+      - name: Build Executable
+        run: pyinstaller --onefile --name sprite-stacker src/main.py
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: sprite-stacker.exe
+          path: dist/sprite-stacker.exe
 
   release:
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      
+
     steps:
-    - uses: actions/download-artifact@v2
-      with:
-        name: sprite-stacker.exe
+      - uses: actions/checkout@v2
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.run_id }}
-        release_name: Release-${{ github.run_id }}
-        draft: false
-        prerelease: false
+      - uses: actions/download-artifact@v2
+        with:
+          name: sprite-stacker.exe
 
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./sprite-stacker.exe
-        asset_name: sprite-stacker.exe
-        asset_content_type: application/octet-stream
+      - name: List Files for Debugging
+        run: ls -la
+
+      - name: Set up GitHub CLI
+        run: sudo apt-get install gh
+
+      - name: Create or Update Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="latest"
+          git tag -f "$TAG"
+          gh release delete "$TAG" || true
+          gh release create "$TAG" --title "Latest" --notes "This release always contains the latest executable built from the main branch." --draft=false --prerelease=false
+          gh release upload "$TAG" ./sprite-stacker.exe --clobber
