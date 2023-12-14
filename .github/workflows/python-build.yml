@@ -51,7 +51,6 @@ jobs:
         github-token: ${{ secrets.GITHUB_TOKEN }}
         script: |
           const tag = 'release';
-          const octokit = github.getOctokit(process.env.GITHUB_TOKEN);
           const releases = await octokit.rest.repos.listReleases({
             owner: context.repo.owner,
             repo: context.repo.repo
